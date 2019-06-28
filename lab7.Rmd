@@ -1,0 +1,100 @@
+---
+title: "Semiparametric Regression"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Lab 7 - non-standard semi para.
+
+Assume we want to achieve robustness, arbitrary response dist, missing data, measurement error and heteroscedasticity. MCMC is the way to go.
+
+## Quantile regression 
+
+An alt to pen splines or smoothing splines known as quantile smoothing splines. The relevant function is `rqss()` in quantreg.
+
+```{r}
+library(Ecdat)
+data("Workinghours")
+x <- Workinghours$age   
+y <- Workinghours$income/10
+plot(x, y)
+library(quantreg)
+fitQSS <- rqss(y ~ qss(x, lambda = 3.5), tau = 0.5)
+xg <- seq(min(x), max(x), length = 1001)
+fg <- predict(fitQSS, newdata = data.frame(x = xg))
+lines(xg, fg, col = "darkgreen", lwd = 2)
+```
+
+Zoom in on the action.
+
+```{r}
+plot(x, y, ylim = c(0, 200))
+
+lines(xg, fg, col = "darkgreen", lwd = 2)
+```
+
+
+```{r}
+y[1] <- 1000*y[1] 
+plot(x,y,col = "dodgerblue",cex = 0.2)
+fitQSS <- rqss(y ~ qss(x,lambda = 3.5),tau = 0.5)
+xg <- seq(min(x),max(x),length = 1001)
+fg <- predict(fitQSS,newdata = data.frame(x = xg))
+lines(xg,fg,col = "darkgreen",lwd = 2)
+plot(x,y,col = "dodgerblue",cex = 0.2,
+     ylim = c(0,200))
+lines(xg,fg,col = "darkgreen",lwd = 2)
+```
+
+
+```{r}
+source("./SRwRSscripts/MichIncMultQSS.R")
+```
+
+
+
+
+
+
+```{r}
+library(rstan)
+rstan_options(auto_write = TRUE)
+Sys.setenv(LOCAL_CPPFLAGS = '-march=native')
+options(mc.cores = parallel::detectCores())
+
+# compile code
+myf <- file.path("lab3a.stan")
+mod <- rstan::stan_model(myf ,verbose = F)
+
+fit <- rstan::sampling(object  = mod,
+                       data    = list(x = x),
+                       warmup  = 1000,
+                       chains  = 1,
+                       thin    = 1,
+                       iter    = 2000,
+                       refresh = 100)
+
+pMCMC <- extract(fit, "p", permuted = F)
+plot(pMCMC, type = "l", col = "darkgreen")
+plot(pMCMC[1:999], pMCMC[2:1000], col = "blue")
+acf(pMCMC)
+monitor(pMCMC)
+hist(pMCMC, col = "palegreen", breaks = 50, prob = T)
+```
+
+
+```{r}
+y[1] <- 1000*y[1] 
+plot(x,y,col = "dodgerblue",cex = 0.2)
+fitQSS <- rqss(y ~ qss(x,lambda = 3.5),tau = 0.5)
+xg <- seq(min(x),max(x),length = 1001)
+fg <- predict(fitQSS,newdata = data.frame(x = xg))
+lines(xg,fg,col = "darkgreen",lwd = 2)
+plot(x,y,col = "dodgerblue",cex = 0.2,
+     ylim = c(0,200))
+lines(xg,fg,col = "darkgreen",lwd = 2)
+```
+
+
+
