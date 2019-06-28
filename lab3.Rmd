@@ -151,6 +151,8 @@ fit <- rstan::sampling(object  = mod,
                        iter    = 3000,
                        refresh = 100)
 
+summary(fit)$summary
+
 ```
 
 

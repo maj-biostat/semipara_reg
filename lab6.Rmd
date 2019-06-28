@@ -1,0 +1,148 @@
+---
+title: "Semiparametric Regression"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Lab 6
+
+Now we look at bivariate setting.
+
+```{r}
+library(HRW)
+library(lattice)
+data("ozoneSub")
+
+x <- ozoneSub$longitude
+y <- ozoneSub$latitude
+z <- ozoneSub$ozone
+
+cloud(z ~ x*y, xlab = "deg long",
+      ylab = "deg lat",
+      zlab = "ozone")
+```
+
+Fit model
+
+```{r}
+library(mgcv)
+fit <- gam(z ~ s(x, y))
+plot(fit)
+points(x, y, col = "dodgerblue")
+gam.check(fit)
+```
+
+
+The residual plot looks ok but the low p-value for k-index is worrying and indicates insufficient spline basis functions.
+
+```{r}
+fitHighBasis <- gam(z ~ s(x, y, k = 60))
+summary(fitHighBasis)
+plot(fitHighBasis)
+points(x, y, col = "dodgerblue")
+gam.check(fitHighBasis)
+```
+
+Now contour plot.
+
+```{r}
+ngrid <- 201
+xgrid <- seq(min(x),max(x),length = ngrid)
+ygrid <- seq(min(y),max(y),length = ngrid)
+xymesh <- expand.grid(xgrid,ygrid)
+names(xymesh) <- c("x","y")
+fitmesh <- matrix(predict(fitHighBasis,
+                  newdata = xymesh),
+                  ngrid,ngrid)
+filled.contour(xgrid,ygrid,fitmesh,
+               xlab = "degrees longitude",ylab = "degrees latitude",
+               key.title = title(main = "ozone"))
+```
+
+###  Advanced Graphical displays
+
+Most geo datasets are dispersed.
+
+```{r}
+library(HRW)
+data("SydneyRealEstate")
+x <- SydneyRealEstate$longitude
+y <- SydneyRealEstate$latitude
+z <- SydneyRealEstate$logSalePrice
+
+plot(x, y, col = "dodgerblue", cex = 0.1)
+
+
+data("SydneyRealEstateBdry")
+print(SydneyRealEstateBdry)
+lines(SydneyRealEstateBdry)
+```
+
+Fit model.
+
+```{r}
+library(mgcv)
+fit <- gam(z ~ s(x, y, k = 150))
+plot(fit)
+```
+
+Image plot of surface:
+
+```{r}
+ngrid <- 201
+xgrid <- seq(min(x), max(x), length = ngrid)
+ygrid <- seq(min(y), max(y), length = ngrid)
+xymesh <- expand.grid(xgrid, ygrid)
+names(xymesh) <- c("x", "y")
+fitmesh <- matrix(predict(fit, newdata = xymesh), ngrid, ngrid)
+image(xgrid, ygrid, fitmesh, 
+      col = terrain.colors(1000),
+      xlab = "deg long",
+      ylab = "deg lat")
+points(x, y, col = "dodgerblue", pch = ".")
+
+
+
+```
+
+Clip image with boundary.
+
+```{r}
+outInds <- (1:ngrid^2)[pointsInPoly(xymesh, 
+                                    SydneyRealEstateBdry)==F]
+fitmesh[outInds] <- NA
+image(xgrid, ygrid, fitmesh, 
+      col = terrain.colors(1000),
+      xlab = "deg long",
+      ylab = "deg lat")
+
+lines(SydneyRealEstateBdry)
+```
+
+### Creating polygon regions for clipping
+
+Plot shows the long/lat of data on scallop abundance in US.
+
+```{r}
+library(HRW)
+data("scallop")
+x <- scallop$longitude
+y <- scallop$latitude
+
+plot(x, y, col = "dodgerblue", cex = 0.1)
+
+```
+
+Create boundary. The bit commented out is interactive - you need to pick the points for the boundary.
+
+```{r}
+# myScallopBdry <- createBoundary(x, y)
+# print(myScallopBdry)
+# write.table(myScallopBdry, "bdry.txt", col.names = F, row.names = F)
+mys <- read.table("bdry.txt")
+plot(x, y, col = "dodgerblue")
+lines(mys, col = "navy")
+```
+
+

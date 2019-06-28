@@ -18,8 +18,10 @@ model {
   // // likelihood 
   // target += bernoulli_logit_lpmf(y | eta);
   
-  x ~ bernoulli(p);
-  p ~ uniform(0, 1);
+  target += uniform_lpdf(p | 0, 1);
+  target += binomial_lpmf(x | 1, p);
+  
+
 
 }
 // generated quantities { 
