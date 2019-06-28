@@ -1,0 +1,244 @@
+---
+title: "Semiparametric Regression"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Lab 5
+
+Example is bone mineral data that has a few points for each individual. Assume we have $m$ groups with $n_i$ in each group.
+
+\begin{aligned}
+SBMD_{ij} = U_i + f(age_{ij}) + e_{ij}
+\end{aligned}
+
+The Z matrix now has two parts, the random intercepts and the spline basis functions.
+
+Other example is adolescent growth curves. Here we have a lot more measures per person, but they are not parallel so we need a bit more than a random intercept.
+
+\begin{aligned}
+y_{ij} = g_i(x_{ij}) + f(age_{ij}) + e_{ij}
+\end{aligned}
+
+$f$ is the population curve. $g_i$ are the deviations. These are called group specific growth curve models.
+
+But these cannot be fit using `mgcv`, `gam` and `gamlss` so we need to use nlme or stan. For nlme we have to set up the matrices ourselves.
+
+
+```{r}
+library(lattice) ; library(HRW); data(femSBMD)
+pobj <- xyplot(spnbmd ~ age|factor(ethnicity),
+        group = idnum, data = femSBMD,
+        xlab = "age",
+        ylab = "spinal bone mineral density",
+        panel = function(x,y,subscripts,groups)
+        {
+           panel.grid()
+           panel.superpose(x,y,subscripts,groups,
+           type = "b",pch = 16,lwd = 2)
+        })
+print(pobj)
+```
+
+The idnum term contains the group level ids. Let's say we are intersted in the differences in mean spinal bone mineral density among the 4 ethnic categories after accounting for age and within group correl.
+
+```{r}
+library(mgcv)
+fitGAMM <- gamm(spnbmd ~ s(age) + black + 
+                  hispanic + white,
+                random = list(idnum = ~1), 
+                data = femSBMD)
+plot(fitGAMM$gam, shade  = T, shade.col = "palegreen")
+```
+
+Note the vertical centering. A summary can be obtained with:
+
+```{r}
+summary(fitGAMM$gam)
+intervals(fitGAMM$lme)
+```
+
+So, the comparison between asian and black looks significant, but there is no ev for difference between asian and hisp nor asian and white.
+
+### Group specific curves
+
+Useful ref Donnelly 1995 Prediction and creation of smooth curves for temporally correlated longitudinal data but here we follow that of Durban 2005 Simple fitting of sub-specific curves for longitudinal data.
+
+```{r}
+library(HRW)  ;  library(lattice)
+data(growthIndiana)
+growthINblackMales <- 
+   growthIndiana[(growthIndiana$male == 1)
+        & (growthIndiana$black == 1),]
+pobj <- xyplot(height ~ age|idnum,groups = idnum,
+        data = growthINblackMales,
+        layout = c(4,7),strip = FALSE,
+        xlab = "age",
+        ylab = "height (centimetres)",
+        as.table = TRUE,
+        panel = function(x,y,subscripts,groups)
+        {
+           panel.grid()
+           panel.superpose(x,y,subscripts,groups,
+                col = "dodgerblue",type = "b")
+        })
+print(pobj)
+```
+
+
+Note that the curves differ markedly.
+
+The group specific models can proceed from:
+
+
+\begin{aligned}
+y_{ij} = \beta_0 + \beta_1 x 
+\end{aligned}
+
+
+<!-- y_{g, k} \sim N(0, \sigma_g^2) \\ -->
+<!-- g_i(x_i) = U_{0i} + U_{1i}x +  \sum_{k=1}^K_{r}u_{r, ik} z_{r, k}(x) \\ -->
+<!-- U \sim N(0, \Sigma) \\ -->
+<!-- u_{r, ik} \sim N(0, \sigma_r^2) -->
+
+We use `lme()` to fit the above. 
+
+```{r}
+library(nlme)
+
+age <- growthINblackMales$age 
+height <- growthINblackMales$height
+idnumOrig <- growthINblackMales$idnum
+idnum <- match(idnumOrig, unique(idnumOrig))
+growthINblackMales$idnum <- idnum
+# set up the z_gbl and the z_grp
+
+numObs <- length(height)
+numIntKnotsGbl <- 20
+intKnotsGbl <- quantile(unique(age),
+               seq(0,1,length = numIntKnotsGbl + 2)
+               [-c(1,numIntKnotsGbl + 2)])
+range.age <- c(5.5,20)
+Zgbl <- ZOSull(age,range.x = range.age,
+               intKnots = intKnotsGbl)
+numIntKnotsGrp <- 10	
+intKnotsGrp <- quantile(unique(age),
+   seq(0,1,length = numIntKnotsGrp + 2)
+   [-c(1,numIntKnotsGrp+2)])
+Zgrp <- ZOSull(age,range.x = range.age,
+        intKnots = intKnotsGrp)
+
+# set up the random effect structure
+
+dummyID <- factor(rep(1, numObs))
+Zblock <- list(dummyID = pdIdent(~ -1 + Zgbl),
+               idnum = pdSymm(~ age),
+               idnum = pdIdent(~ -1 + Zgrp))
+
+```
+
+The dummyID is an array of len numObs (total num of obs) with all entries equal to 1. This tricks lme() into accomodating a global pen spline component.
+
+The `pdIdent(~ -1 + Zgbl)` invokes the multiple of I $u_{gbl} \sim N(0, \sigma^2_{gbl}I)$ across the entire data regardless of within sub grouping.
+
+The `pdSymm(~ age)` invokes the block diag unstruc 2x2 cov matrix on [U_{0i} U_{1i}]^T
+
+The `pdIdent(~ -1 + Zgrp)` does the same for the group level u.
+
+Now call lme:
+
+```{r}
+blkMalGD <- groupedData(height ~ age | dummyID, 
+                        data = data.frame(height, age, 
+                                          Zgbl, Zgrp, idnum))
+fitGSCM <- lme(height ~ age, data = blkMalGD, random = Zblock)
+```
+
+Now we can plot the subject level curves.
+
+```{r}
+ng <- 101
+ageg <- seq(range.age[1], range.age[2], length = ng)
+Xg <- cbind(1, ageg)
+Zgblg <- ZOSull(ageg, range.x = range.age, intKnots = intKnotsGbl)
+Zgrpg <- ZOSull(ageg, range.x = range.age, intKnots = intKnotsGrp)
+
+# extract coef
+
+betaHat <- as.vector(fitGSCM$coefficients$fixed)
+uHat <- as.vector(fitGSCM$coefficients$random[[1]])
+fHatg <- as.vector(Xg %*% betaHat + Zgblg %*% uHat)
+
+```
+
+Code for plotting.
+
+```{r}
+numGrp <- length(unique(idnum))
+curvEsts <- vector("list",numGrp)
+for (i in 1:numGrp)
+{
+   uLinHati <- as.vector(
+               fitGSCM$coef$random[[2]][i,])
+   uSplHati <- as.vector(
+               fitGSCM$coef$random[[3]][i,])
+   gHati <- as.vector(Xg%*%uLinHati 
+                    + Zgrpg%*%uSplHati)
+   curvEsts[[i]] <- fHatg + gHati
+}
+
+pobj <- xyplot(height ~ age|idnum,
+        groups = idnum,
+        data = growthINblackMales,
+        strip = FALSE,
+        xlab = "age (years)",
+        ylab = "height (centimetres)",
+        as.table = TRUE, layout = c(4,7),
+        panel = function(x,y,subscripts,groups)
+        {  
+           panel.grid()
+           adolNum <- idnum[subscripts][1]
+           panel.superpose(x,y,subscripts,groups,
+           col = "dodgerblue",type = "b")
+           panel.xyplot(ageg,curvEsts[[adolNum]],
+           col = "darkgreen",lwd = 2,type = "l")
+        })
+print(pobj)
+
+```
+
+We can check the residuals with:
+
+```{r}
+plot(fitGSCM)
+```
+
+### Contrast Curves
+
+Again using the indiana growth data. This is purely demo because there is too much code to type a custom version. The code stratifies by sex.
+
+```{r}
+library(HRW)
+demo(maleGrowthIndiananlme, package = "HRW")
+```
+
+The code can be obtained from the following file.
+
+```{r}
+system.file("demo", "maleGrowthIndiananlme.R", package = "HRW")
+```
+
+A Bayesian version can be found here:
+
+```{r}
+system.file("demo", "maleGrowthIndianaBayes.R", package = "HRW")
+```
+
+Finally, a stan version can be found here but takes hours to run.
+
+```{r, eval=F}
+library(HRW)
+system.file("demo", "coralAna.R", package = "HRW")
+```
+

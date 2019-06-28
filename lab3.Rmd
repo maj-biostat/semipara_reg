@@ -7,6 +7,9 @@ editor_options:
 
 # Lab 3
 
+You need to use at least Version 1.2.1335 of rstudio and version R-3.5.2 or later.
+
+
 ## Bayesian Inference
 
 \begin{aligned}
@@ -200,8 +203,8 @@ abline(v=quantile(xOrig,0.25),lty=2,col="darkorange")
 abline(v=quantile(xOrig,0.50),lty=2,col="darkorange")
 abline(v=quantile(xOrig,0.75),lty=2,col="darkorange")
 
-cat("Hit Enter to continue.\n")
-ans <- readline()
+# cat("Hit Enter to continue.\n")
+# ans <- readline()
 
 # Obtain samples from the posterior distribution of the
 # effective degrees of freedom:
@@ -236,8 +239,7 @@ parNamesVal <- list(c("effective","degrees","of freedom"),
 
 summMCMC(MCMClist,parNames=parNamesVal)
 
-cat("Hit Enter to continue.\n")
-ans <- readline()
+
 
 # Obtain chain summaries via the monitor() function:
 
