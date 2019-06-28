@@ -84,7 +84,250 @@ plot(fitStepGam, pages = 1)
 library(HRW)
 data("BostonMortgages")
 
+d <- BostonMortgages
 
+
+pdeny_blk <- sum(d$deny[d$black == "yes"] == "yes") / sum(d$black == "yes")
+
+fitSimpGLM <- glm(deny ~ black,family = binomial,
+                  data = d)
+betaHat <- fitSimpGLM$coef[2]
+SEbetaHat <- summary(fitSimpGLM)$coefficients[2,2]
+CIandEstForLogOR <- c(betaHat - 
+                    qnorm(0.975)*SEbetaHat,
+                    betaHat,
+                    betaHat + 
+                    qnorm(0.975)*SEbetaHat)
+CIandEstForOR <- as.numeric(exp(CIandEstForLogOR))
+names(CIandEstForOR) <- c("lower","estimate",
+                          "upper")
+print(round(CIandEstForOR,2))
+```
+
+The above gives the odds ratio of black versus nun-black mortgage applicants being unsuccessful, which equals 4. Next more variables are incorporated.
+
+Use `step.Gam()` from gam package to select a model allowing predictors:
++ dir
++ hir
++ lvr
+with 2, 6 or 10 edf.
+
+```{r}
+library(HRW)
+data(BostonMortgages)
+detach("package:mgcv") ; 
+library(gam)
+
+fitInitial <- gam(deny ~ dir + hir + lvr 
+                   + factor(ccs) + factor(mcs) 
+                   + factor(pbcr)
+                   + dmi + self 
+                   + single + uria
+                   + condominium + black,
+                   family = binomial,
+                   data = BostonMortgages)
+
+scopeList <- list(
+        "dir" = ~ 1+dir+s(dir,2)+s(dir,6)+s(dir,10),
+        "hir" = ~ 1+hir+s(hir,2)+s(hir,6)+s(hir,10),
+        "lvr" = ~ 1+lvr+s(lvr,2)+s(lvr,6)+s(lvr,10),
+        "ccs" = ~ 1 + factor(ccs),
+        "mcs" = ~ 1 + factor(mcs),
+        "pbcr" = ~ 1 + factor(pbcr),
+        "dmi" =  ~ 1 + dmi,
+        "self" = ~ 1 + self,
+        "single" = ~ 1 + single,
+        "uria" =   ~ 1 + uria,
+        "condominium" =  ~ 1 + condominium,
+        "black" =  ~ 1 + black)
+
+stepFit <- step.Gam(fitInitial,scope = scopeList)
+
+print(names(stepFit$"model")[-1])
 
 ```
+
+Nine parameters are chosen, two of which have high non-linearity.
+
+
+```{r}
+library(HRW)
+data(BostonMortgages)
+detach("package:gam") ; 
+library(mgcv)
+
+fitGAM <- gam(deny ~ s(dir, k = 27) + 
+                s(lvr, k = 27) +
+                factor(ccs) + 
+                factor(pbcr) +
+                dmi + self + single + uria + black,
+              family = binomial,
+              data = BostonMortgages)
+print(summary(fitGAM))
+     
+options(warn = -1)
+plot(fitGAM, pages = 1, xlim = c(0, 1), shade = T, 
+     shade.col = "palegreen", col = "darkgreen")
+```
+
+The above figure just shows the non-linear parts (dir and lvr). Now extract the ORs.
+
+
+```{r}
+betaHat <- fitGAM$coefficients[12]
+SEbetaHat <- summary(fitGAM)$p.table[12, 2]
+CIandEstForLogOR <- c(betaHat - qnorm(0.975) * SEbetaHat, 
+                      betaHat, 
+                      betaHat + qnorm(0.975) * SEbetaHat)
+CIandEstForOR <- as.numeric(exp(CIandEstForLogOR))
+names(CIandEstForOR) <- c("lwr", "est", "upr")
+
+print(round(CIandEstForOR, 2))
+```
+
+So now the OR for black has dropped to be about half of what it was previously. However, the OR is still > 1.
+
+To get a plot on the probability scale do:
+
+```{r}
+demo(BostMortGAMfit, package = "HRW")
+
+system.file("demo", "BostMortGAMfit.R", package = "HRW")
+```
+
+
+## Count regression
+
+```{r}
+library(Ecdat)
+data(OFP)
+
+# Take ofp (num of physician office visits) as the response
+par(mfrow = c(1, 1))
+hist(OFP$ofp, col = "blue", breaks = 100)
+mean(OFP$ofp)
+var(OFP$ofp)
+
+```
+
+In `mgcv`, overdispersion can be handled with `family = quasipoisson` another al is to use neg bin rather than poisson but neither mgcv nor gam support nb. Not all is lost because gamlss has `family = NBI`. Here is example.
+
+```{r}
+OFPforAna <- OFP
+OFPforAna$age <- 10 * OFPforAna$age
+OFPforAna <- OFPforAna[OFPforAna$age < 95, ]
+library(gamlss)
+fitgamlss <- gamlss(ofp ~ pb(age) + pb(school) +
+                      black + sex + maried + 
+                      adldiff + privins + medicaid +
+                      region + hlth, family = NBI, 
+                    data = OFPforAna)
+summary(fitgamlss)
+```
+
+Most of the terms are sig. The plot function shows the residuals but does not give an easy way to visualise the relationship between the response and the terms in the model.
+
+
+## Model selection via gamsel
+
+Instead of stepwise on AIC use lasso for regularisation.
+
+```{r}
+library(Ecdat)
+data("Caschool")
+Caschool$log.avginc <- log(Caschool$avginc)
+X <- Caschool[, c(7,8,11,12,13, 15, 18)]
+y <- as.vector(Caschool[, 17])
+library(gamsel)
+set.seed(919)
+fitCVgamsel <- cv.gamsel(X, y)
+fitCVgamsel$gamsel.fit
+
+plot(fitCVgamsel)
+```
+
+The plot shows the cv mse with +/- 1 se as a func of $\lambda$. Lambda min is equal to around 15 and 1se is 47. The latter takes the variability of the cv mse function into account so we choose the larger value.
+
+```{r}
+fitCVgamsel$lambda.min
+fitCVgamsel$lambda.1se
+fitCVgamsel$index.1se
+```
+
+```{r}
+par(mfrow=c(2,4)); indexVal <- fitCVgamsel$index.1se
+for (iPred in 1:7)
+   plot(fitCVgamsel$gamsel.fit,newx = X,
+        which = iPred,index = fitCVgamsel$index.1se,
+        col.main = "navy",main = names(X)[iPred],
+        rugplot = TRUE,bty = "l",
+        ylim = c(-8,16))
+
+```
+
+The colour ccoding in the plot has blue indicating a zero effect, green a linear one and red a non-linear one.
+
+## Model plots for gamlss
+
+Note that variability bands cannot be obtained because gamlss predict function does not provide them. 
+
+```{r}
+OFPforAna <- OFP
+OFPforAna$age <- 10 * OFPforAna$age
+OFPforAna <- OFPforAna[OFPforAna$age < 95, ]
+library(gamlss)
+fitgamlss <- gamlss(ofp ~ pb(age) + pb(school) +
+                      black + sex + maried + 
+                      adldiff + privins + medicaid +
+                      region + hlth, family = NBI, 
+                    data = OFPforAna)
+summary(fitgamlss)
+```
+
+```{r}
+modalValue <- function(x)
+   return(unique(x)[which.max(tabulate(
+          match(x,unique(x))))])
+ng <- 101
+ageg <- seq(min(OFPforAna$age),max(OFPforAna$age),
+            length = ng)
+schoolg <- seq(min(OFPforAna$school),
+               max(OFPforAna$school),length = ng)
+factorsAtModes <- data.frame(
+         black  = modalValue(OFPforAna$black),
+         sex  = modalValue(OFPforAna$sex),
+         maried  = modalValue(OFPforAna$maried),
+         adldiff = modalValue(OFPforAna$adldiff),
+         privins  = modalValue(OFPforAna$privins),
+         medicaid  = modalValue(OFPforAna$medicaid),
+         region  = modalValue(OFPforAna$region),
+         hlth  = modalValue(OFPforAna$hlth))
+newdataAge <- cbind(age = ageg,
+                   school = mean(OFPforAna$school),
+                   factorsAtModes)
+fageg <- predict(fitgamlss,newdata = newdataAge,
+                 type = "response")
+newdataSchool <- cbind(age = mean(OFPforAna$age),
+                 school = schoolg,factorsAtModes)
+fschoolg <- predict(fitgamlss,
+            newdata = newdataSchool,
+            type = "response")
+dev.off() ; par(mfrow = c(1,2))
+plot(ageg,fageg,type = "l",bty = "l",
+     col = "darkgreen",lwd =2,
+     xlab = "age",
+     ylab = "mean no. of physician office visits",
+     ylim = c(3,8))
+rug(jitter(OFPforAna$age),col = "dodgerblue")
+plot(schoolg,fschoolg,type = "l",bty = "l",
+     col = "darkgreen",lwd =2,
+     xlab = "number of years of education",
+     ylab = "mean no. of physician office visits",
+     ylim = c(3,8))
+rug(jitter(OFPforAna$school),col = "dodgerblue")
+
+```
+
+The LHS panel shows the effect of age on visits. Num of visits increase as a function of num years edu, which may be treated as a proxy for ses.
+
 
