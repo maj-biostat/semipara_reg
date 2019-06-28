@@ -1,0 +1,13 @@
+stanObjMultChns <- stan(model_code = BernoulliModel,
+                    data = list(x = x),
+                    warmup = 1000,
+                    iter = 2000,chains = 3,
+                    init = c(0.05,0.5,0.95),
+                    fit = stanCompilObj)
+pMultChnMCMC <- extract(stanObjMultChns,"p",
+                        permuted = FALSE)
+plot(0,type = "n",xlim = c(1,1000),
+     ylim = range(pMultChnMCMC))
+lines(1:1000,pMultChnMCMC[,1,1],col = "red")
+lines(1:1000,pMultChnMCMC[,2,1],col = "blue")
+lines(1:1000,pMultChnMCMC[,3,1],col = "green3")

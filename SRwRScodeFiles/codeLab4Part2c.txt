@@ -1,0 +1,8 @@
+scopeList <- list(
+  "calwpct" =    ~ 1 + calwpct + s(calwpct,2),
+  "mealpct" =    ~ 1 + mealpct + s(mealpct,2),
+  "compstu" =    ~ 1 + compstu + s(compstu,2),
+  "expnstu" =    ~ 1 + expnstu + s(expnstu,2),
+  "str" =        ~ 1 + str + s(str,2),
+  "log.avginc" = ~ 1 + log.avginc + s(log.avginc,2),
+  "elpct" =      ~ 1 + elpct + s(elpct,2))

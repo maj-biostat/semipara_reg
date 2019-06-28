@@ -1,0 +1,8 @@
+CTC <- crossprod(cbind(X,Z)) 
+D <- diag(c(0,0,rep(1,ncol(Z))))
+fullCovMatInv <- CTC + lambdaHat*D
+Cg <- cbind(Xg,Zg)
+sdg <- sigmaEpsHat*sqrt(
+        diag(Cg%*%solve(fullCovMatInv,t(Cg))))
+lowg <- fhatg - qnorm(0.975)*sdg
+uppg <- fhatg + qnorm(0.975)*sdg

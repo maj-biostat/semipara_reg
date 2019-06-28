@@ -1,0 +1,13 @@
+fitSimpGLM <- glm(deny ~ black,family = binomial,
+                  data = BostonMortgages)
+betaHat <- fitSimpGLM$coef[2]
+SEbetaHat <- summary(fitSimpGLM)$coefficients[2,2]
+CIandEstForLogOR <- c(betaHat - 
+                    qnorm(0.975)*SEbetaHat,
+                    betaHat,
+                    betaHat + 
+                    qnorm(0.975)*SEbetaHat)
+CIandEstForOR <- as.numeric(exp(CIandEstForLogOR))
+names(CIandEstForOR) <- c("lower","estimate",
+                          "upper")
+print(round(CIandEstForOR,2))

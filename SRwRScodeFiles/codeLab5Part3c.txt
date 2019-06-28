@@ -1,0 +1,18 @@
+library(HRW)  ;  library(lattice)
+data(growthIndiana)
+growthINblackMales <- 
+   growthIndiana[(growthIndiana$male == 1)
+        & (growthIndiana$black == 1),]
+pobj <- xyplot(height ~ age|idnum,groups = idnum,
+        data = growthINblackMales,
+        layout = c(4,7),strip = FALSE,
+        xlab = "age",
+        ylab = "height (centimetres)",
+        as.table = TRUE,
+        panel = function(x,y,subscripts,groups)
+        {
+           panel.grid()
+           panel.superpose(x,y,subscripts,groups,
+                col = "dodgerblue",type = "b")
+        })
+print(pobj)

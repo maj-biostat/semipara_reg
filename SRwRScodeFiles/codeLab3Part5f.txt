@@ -1,0 +1,8 @@
+yHatMCMC <- X%*%rbind(beta0MCMC,beta1MCMC)
+plot(x,y,type = "n",bty = "l")
+polygon(c(x,rev(x)),
+   c(apply(yHatMCMC,1,quantile,0.025),
+   rev(apply(yHatMCMC,1,quantile,0.975))),
+   col = "palegreen",border = FALSE)
+lines(x,apply(yHatMCMC,1,mean),col = "darkgreen")
+points(x,y,col = "dodgerblue")

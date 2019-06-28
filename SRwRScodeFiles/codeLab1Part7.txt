@@ -1,0 +1,16 @@
+library(mgcv) ; fitGCVmgcv <- gam(y ~ s(x,k = 30))
+par(mfrow = c(1,1))
+plot(x,y,type = "n",bty = "l",
+ xlab = "construction date (years)",
+ ylab = "area (square metres) per million zloty",
+ cex.lab = 1.5,cex.axis = 1.5)
+xg <- seq(min(x),max(x),length = 1001)
+fg <- predict(fitGCVmgcv,newdata
+              = data.frame(x = xg),
+              se.fit = TRUE)
+lowg <- fg$fit - 2*fg$se.fit
+uppg <- fg$fit + 2*fg$se.fit
+polygon(c(xg,rev(xg)),c(lowg,rev(uppg)),
+        col = "palegreen",border = FALSE)
+lines(xg,fg$fit,col = "darkgreen")
+points(x,y,col = "dodgerblue")

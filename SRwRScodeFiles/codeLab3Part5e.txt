@@ -1,0 +1,12 @@
+beta0MCMC <- as.vector(extract(stanObj,"beta[1]",
+                       permuted = FALSE))
+beta1MCMC <- as.vector(extract(stanObj,"beta[2]",
+                       permuted = FALSE))
+sigmaMCMC <- as.vector(extract(stanObj,"sigma",
+                       permuted = FALSE))
+library(HRW) 
+summMCMC(list(cbind(beta0MCMC,beta1MCMC,sigmaMCMC)),
+         parNames = list(expression(beta[0]),
+                         expression(beta[1]),
+                         expression(sigma)))
+

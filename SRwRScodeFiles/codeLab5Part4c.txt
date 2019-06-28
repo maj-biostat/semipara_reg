@@ -1,0 +1,14 @@
+numObs <- length(height)
+numIntKnotsGbl <- 20
+intKnotsGbl <- quantile(unique(age),
+               seq(0,1,length = numIntKnotsGbl + 2)
+               [-c(1,numIntKnotsGbl + 2)])
+range.age <- c(5.5,20)
+Zgbl <- ZOSull(age,range.x = range.age,
+               intKnots = intKnotsGbl)
+numIntKnotsGrp <- 10	
+intKnotsGrp <- quantile(unique(age),
+   seq(0,1,length = numIntKnotsGrp + 2)
+   [-c(1,numIntKnotsGrp+2)])
+Zgrp <- ZOSull(age,range.x = range.age,
+        intKnots = intKnotsGrp)

@@ -1,0 +1,178 @@
+---
+title: "Semiparametric Regression"
+output: html_document
+---
+
+# Lab 2
+
+This uses mixed models allows more complex models to be fit. 
+
+\begin{aligned}
+y = X \beta + Z u  + e \\
+\end{aligned}
+
+Frequentist approach uses ML (for beta) or REML (for G, R) and best prediction (u). We trick mixed model into doing penalised spline smoothing by.
+
+\begin{aligned}
+y_i = \beta_0 + \beta_1 x_i + \sum_{k=1}^K u_k z_k(x)  + e_i \\
+\end{aligned}
+
+## Lab
+
+Data gives distance from pituitary to pterygomaxillary fissure versus age.
+
+Note $\lambda = \frac{\sigma_e^2}{\sigma_u^2}
+
+\begin{aligned}
+dist_{ij} = \beta_0 + \beta_1 age_{ij} + \beta_2 sex_{ij} + U_i + e_ij \\
+\end{aligned}
+
+The plot shows the fitted line for each child. According to the model the lines are parallel with each child having their own intercept.
+
+
+```{r}
+library(nlme)
+plot(Orthodont)
+fit <- lme(fixed = distance ~ age + Sex, random = ~1, data = Orthodont)
+summary(fit)
+plot(augPred(fit), grid = T)
+```
+
+
+## Warsaw apartments
+
+```{r}
+library(HRW)
+cols <- c("dodgerblue", "magenta", 
+          "red", "green3", "darkgreen")
+
+data(WarsawApts)
+x <- WarsawApts$construction.date
+y <- WarsawApts$areaPerMzloty
+
+par(mfrow = c(1, 1))
+plot(x, y, xlab = "Construct date", ylab = "area per mill zloty",
+     col = "dodgerblue")
+
+
+
+```
+
+### Tricking lme
+
+Trick lme into fitting a penalized spline. First vis of the columns in Z: spline functions of the predictor. These are known as canonical O'Sullivan splines, see section 4 of Wand M.P 2008 *On semiparametric regression with O'Sullivan splines*.
+
+```{r}
+# trick lme into fitting a penalized spline
+X <- cbind(1, x)
+numIntKnots <- 25
+intKnots <- quantile(unique(x), 
+                     seq(0, 1, length = numIntKnots + 2)[-c(1, numIntKnots + 2)])
+Z <- ZOSull(x, intKnots = intKnots, range.x = range(x))
+
+head(Z)
+plot(0, type= "n",
+     xlim = range(x),
+     ylim = range(Z))
+for(k in 1:ncol(Z)) points(x, Z[, k], col = k)
+```
+
+
+
+```{r}
+library(nlme)
+dummyGp <- rep(1, length(x))
+dataGp <- groupedData(y ~ x | dummyGp, data = data.frame(x, y))
+
+penSplFitLMM <- lme(y ~ -1 + X, random = pdIdent( ~ -1 + Z), data = dataGp)
+
+```
+
+Extract fixed and RE.
+
+```{r}
+betaHat <- as.vector(penSplFitLMM$coefficients$fixed)
+uHat <- as.vector(penSplFitLMM$coefficients$random[[1]])
+print(betaHat)
+print(uHat)
+```
+
+Set up grid then get the gridwise fixed effects and random effects design mats.
+
+```{r}
+ng <- 1001; xg <- seq(min(x), max(x), length = ng)
+Xg <- cbind(1, xg)
+Zg <- ZOSull(xg, intKnots = intKnots, range.x = range(x))
+# spline
+fhatg <- as.vector(Xg %*% betaHat + Zg %*% uHat)
+
+plot(x, y, col = "dodgerblue",
+     xlab = "const date",
+     ylab = "area per mill")
+lines(xg, fhatg, lwd = 2, col = "darkgreen")
+```
+
+### Add CI
+
+```{r}
+sigmaEpsHat <- penSplFitLMM$sigma
+sigmauHat <- sqrt(as.numeric(VarCorr(penSplFitLMM)[1,1]))
+lambdaHat <- sigmaEpsHat^2/sigmauHat^2
+print(lambdaHat)
+```
+
+The justification of computing the conf bands as follows can be found in Ruppert D. 2003 Semiparametric regression, section 6.4.
+
+```{r}
+CTC <- crossprod(cbind(X,Z)) 
+D <- diag(c(0,0,rep(1,ncol(Z))))
+fullCovMatInv <- CTC + lambdaHat*D
+Cg <- cbind(Xg,Zg)
+sdg <- sigmaEpsHat*sqrt(
+        diag(Cg%*%solve(fullCovMatInv,t(Cg))))
+lowg <- fhatg - qnorm(0.975)*sdg
+uppg <- fhatg + qnorm(0.975)*sdg
+```
+
+Plot
+
+```{r}
+plot(x, y, type = "n", 
+     xlab = "const date",
+     ylab = "area per mill")
+polygon(c(xg, rev(xg)), c(lowg, rev(uppg)), col = "palegreen",
+        border = F)
+lines(xg, fhatg, lwd = 2, col = "darkgreen")
+points(x, y, col = "dodgerblue")
+```
+
+## Use gam()
+
+```{r}
+library(mgcv)
+penSplFitREMLmgcv <- gam(y~ s(x, k = 25), method = "REML")
+shiftAmt <- mean(fitted(penSplFitREMLmgcv))
+plot(penSplFitREMLmgcv, 
+     shift = shiftAmt,
+     ylim = range(y), shade = T,
+     shade.col = "palegreen")
+
+points(x, y, col = "dodgerblue")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

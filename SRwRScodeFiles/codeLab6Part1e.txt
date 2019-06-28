@@ -1,0 +1,11 @@
+ngrid <- 201
+xgrid <- seq(min(x),max(x),length = ngrid)
+ygrid <- seq(min(y),max(y),length = ngrid)
+xymesh <- expand.grid(xgrid,ygrid)
+names(xymesh) <- c("x","y")
+fitmesh <- matrix(predict(fitHighBasis,
+                  newdata = xymesh),
+                  ngrid,ngrid)
+filled.contour(xgrid,ygrid,fitmesh,
+               xlab = "degrees longitude",ylab = "degrees latitude",
+               key.title = title(main = "ozone"))

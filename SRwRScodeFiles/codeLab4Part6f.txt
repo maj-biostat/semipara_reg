@@ -1,0 +1,7 @@
+par(mfrow=c(2,4)); indexVal <- fitCVgamsel$index.1se
+for (iPred in 1:7)
+   plot(fitCVgamsel$gamsel.fit,newx = X,
+        which = iPred,index = fitCVgamsel$index.1se,
+        col.main = "navy",main = names(X)[iPred],
+        rugplot = TRUE,bty = "l",
+        ylim = c(-8,16))

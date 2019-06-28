@@ -1,0 +1,31 @@
+library(HRW)
+data(BostonMortgages)
+detach("package:mgcv") ; library(gam)
+
+fitInitial <- gam(deny ~ dir + hir + lvr 
+                   + factor(ccs) + factor(mcs) 
+                   + factor(pbcr)
+                   + dmi + self 
+                   + single + uria
+                   + condominium + black,
+                   family = binomial,
+                   data = BostonMortgages)
+
+scopeList <- list(
+        "dir" = ~ 1+dir+s(dir,2)+s(dir,6)+s(dir,10),
+        "hir" = ~ 1+hir+s(hir,2)+s(hir,6)+s(hir,10),
+        "lvr" = ~ 1+lvr+s(lvr,2)+s(lvr,6)+s(lvr,10),
+        "ccs" = ~ 1 + factor(ccs),
+        "mcs" = ~ 1 + factor(mcs),
+        "pbcr" = ~ 1 + factor(pbcr),
+        "dmi" =  ~ 1 + dmi,
+        "self" = ~ 1 + self,
+        "single" = ~ 1 + single,
+        "uria" =   ~ 1 + uria,
+        "condominium" =  ~ 1 + condominium,
+        "black" =  ~ 1 + black)
+
+stepFit <- step.Gam(fitInitial,scope = scopeList)
+
+print(names(stepFit$"model")[-1])
+

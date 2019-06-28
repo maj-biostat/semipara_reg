@@ -1,0 +1,40 @@
+modalValue <- function(x)
+   return(unique(x)[which.max(tabulate(
+          match(x,unique(x))))])
+ng <- 101
+ageg <- seq(min(OFPforAna$age),max(OFPforAna$age),
+            length = ng)
+schoolg <- seq(min(OFPforAna$school),
+               max(OFPforAna$school),length = ng)
+factorsAtModes <- data.frame(
+         black  = modalValue(OFPforAna$black),
+         sex  = modalValue(OFPforAna$sex),
+         maried  = modalValue(OFPforAna$maried),
+         adldiff = modalValue(OFPforAna$adldiff),
+         privins  = modalValue(OFPforAna$privins),
+         medicaid  = modalValue(OFPforAna$medicaid),
+         region  = modalValue(OFPforAna$region),
+         hlth  = modalValue(OFPforAna$hlth))
+newdataAge <- cbind(age = ageg,
+                   school = mean(OFPforAna$school),
+                   factorsAtModes)
+fageg <- predict(fitgamlss,newdata = newdataAge,
+                 type = "response")
+newdataSchool <- cbind(age = mean(OFPforAna$age),
+                 school = schoolg,factorsAtModes)
+fschoolg <- predict(fitgamlss,
+            newdata = newdataSchool,
+            type = "response")
+dev.off() ; par(mfrow = c(1,2))
+plot(ageg,fageg,type = "l",bty = "l",
+     col = "darkgreen",lwd =2,
+     xlab = "age",
+     ylab = "mean no. of physician office visits",
+     ylim = c(3,8))
+rug(jitter(OFPforAna$age),col = "dodgerblue")
+plot(schoolg,fschoolg,type = "l",bty = "l",
+     col = "darkgreen",lwd =2,
+     xlab = "number of years of education",
+     ylab = "mean no. of physician office visits",
+     ylim = c(3,8))
+rug(jitter(OFPforAna$school),col = "dodgerblue")

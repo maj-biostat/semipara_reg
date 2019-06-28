@@ -1,0 +1,12 @@
+library(lattice) ; library(HRW); data(femSBMD)
+pobj <- xyplot(spnbmd ~ age|factor(ethnicity),
+        group = idnum, data = femSBMD,
+        xlab = "age",
+        ylab = "spinal bone mineral density",
+        panel = function(x,y,subscripts,groups)
+        {
+           panel.grid()
+           panel.superpose(x,y,subscripts,groups,
+           type = "b",pch = 16,lwd = 2)
+        })
+print(pobj)

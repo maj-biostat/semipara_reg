@@ -1,0 +1,144 @@
+---
+title: "Semiparametric Regression"
+output: html_document
+---
+
+# Preamble
+
+http://matt-wand.utsacademics.info/SRwRS.html
+
+Matt Wand, 1989 Harvard, Rice, Texas
+
+Currently at UTS.
+
+# Why Semipara reg?
+
+Good for summarising. 
+
+# How to do the non-linear part?
+
+Lots of answers. We gonna use spline based approach - sticking poly together. Specifically, we use penalised splines in session 1.
+
+# Lab 1
+
+## My first smoothing spline
+
+First we specify various values for the smoothing parameters.
+
+```{r}
+library(HRW)
+
+cols <- c("dodgerblue", "magenta", 
+          "red", "green3", "darkgreen")
+
+data(WarsawApts)
+x <- WarsawApts$construction.date
+y <- WarsawApts$areaPerMzloty
+plot(x, y, col = "dodgerblue")
+penSplFit1 <- smooth.spline(x, y, spar = 1.1)
+lines(penSplFit1, col = "magenta")
+
+penSplFit2 <- smooth.spline(x, y, spar = 0.1)
+lines(penSplFit2, col = "red")
+
+penSplFit3 <- smooth.spline(x, y, spar = 0.5)
+lines(penSplFit3, col = "green3", lwd = 5)
+```
+
+Data driven smoothing parameter via Generalised Cross Validation (GCV).
+
+```{r}
+penSplGCV <- smooth.spline(x, y)
+plot(x, y, col = "dodgerblue")
+lines(penSplGCV, col = "red")
+```
+
+GCV is also implemented in `mgcv`. The `gam()` function is much more powerful than `smooth.spline()`.
+
+```{r}
+library(mgcv)
+penSplFitGCVmgcv <- gam(y~ s(x, k = 50))
+plot(penSplFitGCVmgcv)
+```
+
+```{r}
+shiftAmt <- mean(fitted(penSplFitGCVmgcv))
+plot(penSplFitGCVmgcv, shift = shiftAmt,
+     ylim = range(y))
+points(x, y, col = "dodgerblue")
+```
+
+
+## Choosing the number of spline basis functions
+
+Initially use the default number of basis functions (8) but based on the result for k-index this seems too low for the data.
+
+When k is increased to 30 we get a k-index value > 1 which suggests adequate number of basis functions. The number of spline basis functions is k-2 = 28.
+
+```{r}
+fitgamDflt <- gam(y ~ s(x))
+gam.check(fitgamDflt)
+
+fitBiggerBasis <- gam(y ~ s(x, k = 30))
+# gives residuals etc
+gam.check(fitBiggerBasis)
+```
+
+## Degrees of freedom
+
+The effective degrees of freedom equals 14 suggesting that the fit has about the same flexibility as a 13th degree poly. EDF is scale free - does not depend on units for x and y.
+
+```{r}
+fitBiggerBasis <- gam(y ~ s(x, k = 30))
+summary(fitBiggerBasis)$edf
+```
+
+```{r}
+par(mfrow = c(2, 2))
+fitLowEDF <- smooth.spline(x, y, df = 2.5)
+plot(x, y, col = cols[1], main = "EDF = 2.5")
+lines(fitLowEDF, col = cols[5])
+
+fitHighEDF <- smooth.spline(x, y, df = 50)
+plot(x, y, col = cols[1], main = "EDF = 50")
+lines(fitHighEDF, col = cols[5])
+
+fitGCV <- smooth.spline(x, y, df = 14.087)
+plot(x, y, col = cols[1], main = "EDF = 14.087")
+lines(fitGCV, col = cols[5])
+
+```
+
+
+## Getting fancy vis.
+
+Here is a publication quality plot.
+
+```{r}
+library(mgcv) ; 
+fitGCVmgcv <- gam(y ~ s(x,k = 30))
+par(mfrow = c(1,1))
+plot(x,y,type = "n",bty = "l",
+ xlab = "construction date (years)",
+ ylab = "area (square metres) per million zloty",
+ cex.lab = 1.5,cex.axis = 1.5)
+xg <- seq(min(x),max(x),length = 1001)
+fg <- predict(fitGCVmgcv,newdata
+              = data.frame(x = xg),
+              se.fit = TRUE)
+lowg <- fg$fit - 2*fg$se.fit
+uppg <- fg$fit + 2*fg$se.fit
+polygon(c(xg,rev(xg)),c(lowg,rev(uppg)),
+        col = "palegreen",border = FALSE)
+lines(xg,fg$fit,col = "darkgreen")
+points(x,y,col = "dodgerblue")
+```
+
+## Penalized spline underpinnings
+
+```{r}
+source("./SRwRSscripts/penSplinesDetails.R")
+```
+
+
+

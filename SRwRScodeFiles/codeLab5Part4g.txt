@@ -1,0 +1,30 @@
+numGrp <- length(unique(idnum))
+curvEsts <- vector("list",numGrp)
+for (i in 1:numGrp)
+{
+   uLinHati <- as.vector(
+               fitGSCM$coef$random[[2]][i,])
+   uSplHati <- as.vector(
+               fitGSCM$coef$random[[3]][i,])
+   gHati <- as.vector(Xg%*%uLinHati 
+                    + Zgrpg%*%uSplHati)
+   curvEsts[[i]] <- fHatg + gHati
+}
+
+pobj <- xyplot(height ~ age|idnum,
+        groups = idnum,
+        data = growthINblackMales,
+        strip = FALSE,
+        xlab = "age (years)",
+        ylab = "height (centimetres)",
+        as.table = TRUE, layout = c(4,7),
+        panel = function(x,y,subscripts,groups)
+        {  
+           panel.grid()
+           adolNum <- idnum[subscripts][1]
+           panel.superpose(x,y,subscripts,groups,
+           col = "dodgerblue",type = "b")
+           panel.xyplot(ageg,curvEsts[[adolNum]],
+           col = "darkgreen",lwd = 2,type = "l")
+        })
+print(pobj)

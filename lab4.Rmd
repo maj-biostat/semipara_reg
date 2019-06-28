@@ -1,0 +1,90 @@
+---
+title: "Semiparametric Regression"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Lab 4
+
+GAM are a method that allows the data to choose the marginal based on splines. The idea is to apply a penalized spline to each covariate. The only assumption (here) is additivity; we do not look at interactions yet. This makes for easier interpretation.
+
+## Lab
+
+Plots show the PS fits with generalised cross-val used to choose the amount of penalisation for each fit.
+
+```{r}
+# install.packages(c("HRW","Ecdat","mlbench","quantreg",
+#                    "gam","gamlss","gamsel"),dependencies=TRUE)
+library(HRW)
+library(Ecdat)
+data(Caschool)
+
+Caschool$log.avginc <- log(Caschool$avginc)
+pairs(Caschool[, c(17, 7, 8, 11, 12, 13, 
+                   15, 18)], col = "dodgerblue")
+library(mgcv)
+
+fitGAM <- gam(mathscr ~ s(calwpct) + 
+                s(mealpct) + s(compstu) + s(expnstu) + 
+                s(str) + s(elpct) +
+                s(log.avginc), data = Caschool)
+
+plot(fitGAM, pages = 1, shade = T, 
+     col = "darkgreen", shade.col = "palegreen")
+
+print(summary(fitGAM))
+```
+
+The summary gives the effective df of each additive model component. The linear effects have edf equal to one. The non-linear effects have higher edf values. Only a few of the terms are significant.
+
+### Model selection
+
+Stepwise. First specify that we want to look at terms not being in the model, being in the model linearly and being in the model non-lin with 2 edf. AIC iss used to id model.
+
+```{r}
+scopeList <- list(
+  "calwpct" =    ~ 1 + calwpct + s(calwpct,2),
+  "mealpct" =    ~ 1 + mealpct + s(mealpct,2),
+  "compstu" =    ~ 1 + compstu + s(compstu,2),
+  "expnstu" =    ~ 1 + expnstu + s(expnstu,2),
+  "str" =        ~ 1 + str + s(str,2),
+  "log.avginc" = ~ 1 + log.avginc + s(log.avginc,2),
+  "elpct" =      ~ 1 + elpct + s(elpct,2))
+```
+
+```{r}
+detach("package:mgcv")
+library(gam)
+fitInit <- gam(mathscr ~ calwpct + 
+                mealpct + compstu + expnstu + 
+                str + elpct +
+                log.avginc, data = Caschool)
+stepFit <- step.Gam(fitInit, scope = scopeList)
+
+names(stepFit$"model")[-1]
+
+```
+
+```{r}
+detach("package:gam")
+library(mgcv)
+fitStepGam <- gam(mathscr ~ mealpct  + elpct +
+                 s(calwpct, k = 27) +
+                 s(compstu, k = 27) +
+                 s(log.avginc, k = 27) , 
+               data = Caschool)
+plot(fitStepGam, pages = 1)
+```
+
+## Mortgage applications
+
+
+```{r}
+library(HRW)
+data("BostonMortgages")
+
+
+
+```
+

@@ -1,0 +1,9 @@
+y[1] <- 1000*y[1] 
+plot(x,y,col = "dodgerblue",cex = 0.2)
+fitQSS <- rqss(y ~ qss(x,lambda = 3.5),tau = 0.5)
+xg <- seq(min(x),max(x),length = 1001)
+fg <- predict(fitQSS,newdata = data.frame(x = xg))
+lines(xg,fg,col = "darkgreen",lwd = 2)
+plot(x,y,col = "dodgerblue",cex = 0.2,
+     ylim = c(0,200))
+lines(xg,fg,col = "darkgreen",lwd = 2)
